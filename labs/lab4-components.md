@@ -26,10 +26,6 @@ interface ButtonProps {
   variant?: 'primary' | 'danger';        // 联合类型
   children?: React.ReactNode;            // 任意 JSX 内容
 }
-
-function Button({ label, disabled, onClick, variant = 'primary', children }: ButtonProps) {
-  return <button disabled={disabled} onClick={onClick}>{label}{children}</button>;
-}
 ```
 
 ### 状态上提
@@ -45,116 +41,97 @@ function Button({ label, disabled, onClick, variant = 'primary', children }: But
 
 ## 任务
 
-把 [frontend/src/App.tsx](../frontend/src/App.tsx) 拆成下面的组件结构：
+骨架文件已经准备好。最终目标结构：
 
 ```
-src/
+frontend/src/
 ├── App.tsx                       # 只剩布局 + 顶层 state
+├── types.ts                      # 共享类型
 └── components/
-    ├── MessageList.tsx           # 渲染消息列表（含空状态、自动滚动）
-    ├── MessageItem.tsx           # 单条消息（区分 user/bot）
-    ├── ChatInput.tsx             # 输入框 + 发送按钮 + 字符数 + Enter 发送
-    └── EmptyState.tsx            # 空状态提示
+    ├── Header.tsx                # 顶部标题 + 清空按钮
+    ├── MessageList.tsx           # 消息列表（含空状态、自动滚动）
+    ├── MessageItem.tsx           # 单条消息
+    ├── ChatInput.tsx             # 输入框 + 发送
+    └── EmptyState.tsx            # 空状态占位
 ```
 
-### Task 4.1 — 提取 `MessageItem`
+每个骨架文件里的 `TODO` 就是你要补的地方。打开它们：
 
-接收单条 `Message` 作为 prop，按角色渲染不同样式。
+- [frontend/src/types.ts](../frontend/src/types.ts) —— 共享类型，已写好 `Message`
+- [frontend/src/components/MessageItem.tsx](../frontend/src/components/MessageItem.tsx)
+- [frontend/src/components/MessageList.tsx](../frontend/src/components/MessageList.tsx)
+- [frontend/src/components/ChatInput.tsx](../frontend/src/components/ChatInput.tsx)
+- [frontend/src/components/EmptyState.tsx](../frontend/src/components/EmptyState.tsx)
+- [frontend/src/components/Header.tsx](../frontend/src/components/Header.tsx)
 
-```tsx
-// components/MessageItem.tsx
-import type { Message } from '../types';
+### Task 4.1 — `MessageItem`
 
-interface Props {
-  message: Message;
-}
-export function MessageItem({ message }: Props) {
-  // TODO
-}
-```
+打开 [MessageItem.tsx](../frontend/src/components/MessageItem.tsx)，按文件内提示实现。
+要求：按 `role` 区分 user / bot 样式（颜色、对齐）。
 
-**额外要求**：把 `Message` 接口移到一个新文件 `src/types.ts`，让其他文件 import。
+同时把原来 App.tsx 里 inline 的 `Message` 接口删除（它已经在 [types.ts](../frontend/src/types.ts) 里），改成从 types.ts import。
 
 ---
 
-### Task 4.2 — 提取 `MessageList`
+### Task 4.2 — `MessageList`
 
-接收消息数组，负责：
+打开 [MessageList.tsx](../frontend/src/components/MessageList.tsx)。
+要求：
 - 渲染所有 `MessageItem`
-- 处理空状态（用 `EmptyState`）
-- Lab 3 的自动滚动逻辑也搬到这里
+- 空列表时显示 `EmptyState`
+- Lab 3 的"新消息自动滚到底部"逻辑搬到这里
 
-```tsx
-interface Props {
-  messages: Message[];
-}
-export function MessageList({ messages }: Props) {
-  // TODO
-}
-```
-
-**思考**：滚动用的 `useRef` 应该放在 `App` 还是 `MessageList` 里？为什么？
+思考：滚动用的 `useRef` 应该放在 App 还是 MessageList 里？为什么？
 
 ---
 
-### Task 4.3 — 提取 `ChatInput`
+### Task 4.3 — `ChatInput`（最难的一步）
 
-这是最难的一步，因为它涉及"受控/非受控"的设计选择。
+打开 [ChatInput.tsx](../frontend/src/components/ChatInput.tsx)。
 
-**方案 A（受控）**：input 的值由父组件 App 管理
-```tsx
-interface Props {
-  value: string;
-  onChange: (v: string) => void;
-  onSend: () => void;
-  disabled?: boolean;
-}
-```
+设计选择：**受控 vs 非受控**
 
-**方案 B（非受控）**：input 的值由 ChatInput 自己管理，发送时通过回调上报
-```tsx
+| 方案 | 谁管输入值 | 父组件能不能实时读到输入 |
+|---|---|---|
+| 受控 | 父组件（用 `value` + `onChange` props） | 能 |
+| 非受控 | ChatInput 自己（内部 useState） | 不能，只在 `onSend` 时上报 |
+
+**本 Lab 用非受控**。理由：草稿、字符数限制都是输入框自己的事，App 只关心"用户最终发了什么"。
+
+骨架文件里 props 已经是非受控形态：
+```ts
 interface Props {
   onSend: (text: string) => void;
   disabled?: boolean;
 }
 ```
 
-**任务**：用方案 B 实现。理由：草稿、字符数限制这些都是输入框自己的事，App 只关心"用户发了什么"。
-
-要求 `ChatInput` 内部自己管理：
+要求 ChatInput 内部自己管：
 - 输入值
 - 字符数限制（200）
-- Enter 发送 vs Shift+Enter 换行
+- Enter 发送 / Shift+Enter 不发送
 - 自动 focus
-- 草稿保存到 localStorage
-
-发送时调 `onSend(text)`，发送后**清空自己的 input**。
+- 草稿持久化（localStorage，复用 Lab 3 经验）
+- 发送后清空输入
 
 ---
 
-### Task 4.4 — 提取 `EmptyState`
+### Task 4.4 — `EmptyState`（练习 children）
 
-练习 `children` props：
-```tsx
-interface Props {
-  icon?: string;       // 比如 '💬'
-  children: React.ReactNode;
-}
-export function EmptyState({ icon = '💬', children }: Props) {
-  // 居中显示 icon 和 children
-}
-```
+打开 [EmptyState.tsx](../frontend/src/components/EmptyState.tsx)，实现 children 占位组件。
 
-使用：
+用法在 MessageList 里：
 ```tsx
 <EmptyState icon="💬">开始聊天吧～</EmptyState>
 ```
 
 ---
 
-### Task 4.5 — 重构后的 App.tsx
+### Task 4.5 — `Header` + 重构 App.tsx
 
-最终的 App.tsx 应该非常干净，大致长这样：
+打开 [Header.tsx](../frontend/src/components/Header.tsx)，实现标题 + 清空按钮。
+
+然后重构 [App.tsx](../frontend/src/App.tsx)。最终应该长这样（**示意，不要照抄**）：
 ```tsx
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -163,7 +140,6 @@ export default function App() {
   async function handleSend(text: string) {
     // ... append user msg + placeholder + fetch + replace
   }
-
   function handleClear() {
     setMessages([]);
   }
@@ -178,14 +154,14 @@ export default function App() {
 }
 ```
 
-**注意**：还需要把"清空对话"按钮抽到一个 `Header` 组件（自己加，作为 Task 4.5 的一部分）。
+**App.tsx 不应该出现任何 input/button/li 等具体 UI 元素**，应该全是组件标签。
 
 ---
 
-### Task 4.6 — 给每个组件 props 加 JSDoc 注释
+### Task 4.6 — props 加 JSDoc 注释
 
-打开任意一个组件文件，在 props 接口字段上加注释：
-```tsx
+每个组件 props 字段都加 JSDoc：
+```ts
 interface Props {
   /** 当前消息数据 */
   message: Message;
@@ -194,18 +170,19 @@ interface Props {
 }
 ```
 
-好处：在使用方鼠标悬停时 VS Code 会自动显示这些注释。**这是企业项目的基本规范**。
+骨架文件里我已经示范了大部分，确认你新加的字段也都有注释。
+好处：使用方鼠标悬停时 VS Code 自动显示。**这是企业项目的基本规范**。
 
 ---
 
 ## 验收清单
 
 - [ ] `App.tsx` 行数明显减少（建议 < 60 行）
-- [ ] `Message` 类型在 `src/types.ts`，三处以上 import
+- [ ] `Message` 类型在 [types.ts](../frontend/src/types.ts)，三处以上 import
 - [ ] 文件夹结构如上所述
 - [ ] `ChatInput` 自己管理输入、草稿、字符数，App 不感知
 - [ ] `EmptyState` 用 `children` 接收内容
-- [ ] 每个组件 props 都有完整 TS 类型（没有 `any` / `props: any`）
+- [ ] 每个组件 props 都有完整 TS 类型（没有 `any`）
 - [ ] props 字段有 JSDoc 注释
 - [ ] 功能完全不变（Lab 2/3 所有验收点仍通过）
 - [ ] React DevTools 里能看到清晰的组件树
@@ -221,17 +198,17 @@ interface Props {
 <details>
 <summary>答案</summary>
 
-- 非受控让父组件不用关心输入细节（每个字符变化、字数限制都不影响父组件渲染），性能也好。当父组件**需要**实时读到 input 值（例如做 autocomplete），就要受控。
+- 非受控让父组件不用关心输入细节，性能也好。当父组件**需要**实时读到 input 值（例如做 autocomplete），就要受控。
 - 不行。`handleSend` 在 `App` 里需要往 `messages` 里 append，子组件不能改父组件的 state。**这就是"状态上提"的原因**。
-- 放到一个独立的 store（Lab 7 的 Zustand）或 Context 里，让任何窗口都能读到。
+- 放到一个独立的 store（Lab 7 的 Zustand）或 Context 里。
 </details>
 
 ---
 
 ## 选做加分项
 
-- **A**: 实现 `<Message>` 组件支持 markdown 渲染（用 `react-markdown` 库），bot 消息渲染成 markdown
-- **B**: 实现 `<Avatar role="user" | "bot" />` 子组件，user 显示 "我"，bot 显示 🤖
+- **A**: 让 `MessageItem` 支持 markdown 渲染（用 `react-markdown` 库），bot 消息渲染成 markdown
+- **B**: 加一个 `<Avatar role="user" | "bot" />` 子组件
 - **C**: 给 `MessageItem` 加 `React.memo`，理解何时该用 memo（结合 React DevTools 的 "Highlight updates" 观察渲染）
 
 ---

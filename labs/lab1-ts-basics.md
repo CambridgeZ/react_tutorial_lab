@@ -55,144 +55,57 @@ function identity<T>(x: T): T { return x; }                   // 泛型
 
 ## 任务
 
-我们将在 `frontend/src/exercises/` 下做一系列纯函数练习，用 **Vitest** 跑测试。
+骨架文件已经放在 [frontend/src/exercises/](../frontend/src/exercises/)。
+每个练习有两个文件：
+- `xxx.ts` —— 实现函数
+- `xxx.test.ts` —— 测试用例
 
-### Task 1.0 — 安装 Vitest 并加测试脚本
+打开它们，按文件里的 `TODO` 写代码。
 
-```bash
-cd frontend
-npm install -D vitest @types/node
-```
+### Task 1.0 — 跑 Vitest
 
-在 [frontend/package.json](../frontend/package.json) 的 `scripts` 里加一行：
+确认 [frontend/package.json](../frontend/package.json) 的 `scripts` 里已经有：
 ```json
 "test": "vitest"
 ```
 
-新建文件夹 `frontend/src/exercises/`，所有练习放这里。
-
-验证：
+跑：
 ```bash
-npm test
+cd frontend
+npm test            # watch 模式：改文件自动重跑
+# 或
+npx vitest run      # 单次跑
 ```
-应该看到 vitest 启动（暂时没用例，会提示 no test files）。
+
+应该看到一堆红色失败用例（因为函数都还没实现）。这就是起点。
 
 ---
 
-### Task 1.1 — `pickByIds` (数组 + 对象操作)
+### Task 1.1 — `pickByIds`（数组 + 对象操作）
 
-新建 `frontend/src/exercises/pickByIds.ts`：
-```ts
-export interface User {
-  id: number;
-  name: string;
-  active: boolean;
-}
+- 实现：[frontend/src/exercises/pickByIds.ts](../frontend/src/exercises/pickByIds.ts)
+- 测试已写好：[frontend/src/exercises/pickByIds.test.ts](../frontend/src/exercises/pickByIds.test.ts)
 
-/**
- * 从 users 里挑出 id 在 ids 里的、active 为 true 的用户，
- * 按 ids 给出的顺序返回他们的 name。
- *
- * 示例：
- *   users = [{id:1,name:'a',active:true},{id:2,name:'b',active:false},{id:3,name:'c',active:true}]
- *   ids = [3, 1, 2]
- *   返回 ['c', 'a']   （id=2 因为 active=false 被过滤掉）
- */
-export function pickByIds(users: User[], ids: number[]): string[] {
-  // TODO: 实现我
-  throw new Error('not implemented');
-}
-```
-
-新建 `frontend/src/exercises/pickByIds.test.ts`：
-```ts
-import { describe, it, expect } from 'vitest';
-import { pickByIds, User } from './pickByIds';
-
-const users: User[] = [
-  { id: 1, name: 'a', active: true },
-  { id: 2, name: 'b', active: false },
-  { id: 3, name: 'c', active: true },
-];
-
-describe('pickByIds', () => {
-  it('按 ids 顺序返回 active 用户名', () => {
-    expect(pickByIds(users, [3, 1, 2])).toEqual(['c', 'a']);
-  });
-  it('ids 不存在时跳过', () => {
-    expect(pickByIds(users, [99, 1])).toEqual(['a']);
-  });
-  it('空数组', () => {
-    expect(pickByIds([], [1])).toEqual([]);
-    expect(pickByIds(users, [])).toEqual([]);
-  });
-});
-```
-
-跑 `npm test`，全部绿色才算过。
+要求：让测试全部变绿。
 
 ---
 
-### Task 1.2 — `groupBy` (泛型 + 对象返回)
+### Task 1.2 — `groupBy`（泛型 + 对象返回）
 
-新建 `frontend/src/exercises/groupBy.ts`：
-```ts
-/**
- * 按 keyFn 返回的 key 对数组分组。
- *
- * 示例：
- *   groupBy([1,2,3,4], x => x % 2 === 0 ? 'even' : 'odd')
- *   返回 { odd: [1,3], even: [2,4] }
- *
- * 提示：泛型 T 是元素类型，返回 Record<string, T[]>
- */
-export function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string, T[]> {
-  // TODO
-  throw new Error('not implemented');
-}
-```
+- 实现：[frontend/src/exercises/groupBy.ts](../frontend/src/exercises/groupBy.ts)
+- 测试：[frontend/src/exercises/groupBy.test.ts](../frontend/src/exercises/groupBy.test.ts) —— **你自己写**，至少 3 个用例（含空数组）
 
-自己写 `groupBy.test.ts`，**至少 3 个用例**（包含空数组）。
+提示：reduce 写这个特别自然。如果不熟 reduce，去看我之前给你解释 reduce 的对话。
 
 ---
 
-### Task 1.3 — `retry` (Promise + async/await)
+### Task 1.3 — `retry`（Promise + async/await）
 
-新建 `frontend/src/exercises/retry.ts`：
-```ts
-/**
- * 重试一个返回 Promise 的函数，最多 attempts 次。
- * 每次失败后等待 delayMs 毫秒再重试。
- * 全部失败抛出最后一次的错误。
- *
- * 示例：
- *   await retry(() => fetch('/api'), 3, 100)
- */
-export async function retry<T>(
-  fn: () => Promise<T>,
-  attempts: number,
-  delayMs: number,
-): Promise<T> {
-  // TODO
-  throw new Error('not implemented');
-}
-```
-
-写测试时可以这样构造一个"前两次失败、第三次成功"的函数：
-```ts
-let count = 0;
-const fn = async () => {
-  count++;
-  if (count < 3) throw new Error('fail');
-  return 'ok';
-};
-expect(await retry(fn, 3, 1)).toBe('ok');
-```
-
-**至少 3 个用例**：成功、最终成功、全部失败抛错。
+- 实现：[frontend/src/exercises/retry.ts](../frontend/src/exercises/retry.ts)
+- 测试：[frontend/src/exercises/retry.test.ts](../frontend/src/exercises/retry.test.ts) —— 你自己写，至少 3 个用例
 
 <details>
-<summary>提示（思路卡住才看）</summary>
+<summary>思路提示（卡住才看）</summary>
 
 - 用 `for` 循环跑 `attempts` 次
 - 每次 `try { return await fn() } catch (e) { ... }`
@@ -203,67 +116,47 @@ expect(await retry(fn, 3, 1)).toBe('ok');
 
 ---
 
-### Task 1.4 — `parseQueryString` (字符串处理 + 类型)
+### Task 1.4 — `parseQueryString`（字符串处理 + 类型）
 
-新建 `frontend/src/exercises/parseQueryString.ts`：
-```ts
-/**
- * 把 URL query 字符串解析成对象。
- *
- * 示例：
- *   parseQueryString('?a=1&b=hello&a=2')
- *   返回 { a: ['1', '2'], b: 'hello' }
- *
- * 规则：
- * - 同名 key 出现多次时，值聚合成数组（按出现顺序）
- * - 出现一次的 key，值是字符串
- * - 前导的 '?' 可以有也可以没有
- * - 空串返回 {}
- *
- * 提示：返回值类型用 Record<string, string | string[]>
- */
-export function parseQueryString(qs: string): Record<string, string | string[]> {
-  // TODO
-  throw new Error('not implemented');
-}
-```
-
-写 `parseQueryString.test.ts`，**至少 4 个用例**。
+- 实现：[frontend/src/exercises/parseQueryString.ts](../frontend/src/exercises/parseQueryString.ts)
+- 测试：[frontend/src/exercises/parseQueryString.test.ts](../frontend/src/exercises/parseQueryString.test.ts) —— 你自己写，至少 4 个用例
 
 ---
 
-### Task 1.5 — 给 Lab 0 的 demo 加类型
+### Task 1.5 — 给 demo 加请求类型
 
-打开 [frontend/src/App.tsx](../frontend/src/App.tsx)，看看现在的类型定义 `interface ChatResponse`。
+打开 [frontend/src/App.tsx](../frontend/src/App.tsx)，目前只有 `interface ChatResponse`。
 
-**任务**：把 `handleClick` 里的 request body 也定义一个 `ChatRequest` 类型，并在调用时使用它。
+任务：定义一个 `ChatRequest` 类型，并在 `handleClick` 的 `JSON.stringify(...)` 处使用它：
 
 ```ts
 interface ChatRequest {
   text: string;
 }
-// 然后 body: JSON.stringify({ text: input } satisfies ChatRequest)
+// body: JSON.stringify({ text: input } satisfies ChatRequest)
 ```
 
-了解一下 `satisfies` 关键字（TS 4.9+）：它做"类型检查"但**不改变值的推断类型**。和 `as` 的区别自己查一下。
+了解一下 `satisfies` 关键字（TS 4.9+）：它做类型检查但**不改变值的推断类型**。和 `as` 的区别自己查文档想想。
 
 ---
 
 ## 验收清单
 
-- [ ] `npm test` 全部用例通过
-- [ ] 每个练习至少 3 个测试用例（包括边界情况）
+- [ ] `npx vitest run` 全部用例通过
+- [ ] `groupBy / retry / parseQueryString` 各有 ≥3 个测试用例（parseQueryString 要 ≥4）
 - [ ] 所有函数都有正确的 TypeScript 类型，没有 `any`
 - [ ] App.tsx 加上了 `ChatRequest` 类型
-- [ ] 能解释 `satisfies` 和 `as` 的区别
+- [ ] 能说出 `satisfies` 和 `as` 的区别
 
 ---
 
 ## 选做加分项
 
-挑至少一个：
-- **A**: 实现 `debounce<T extends (...args: any[]) => any>(fn: T, ms: number): T`（防抖函数，后面 Lab 3 会用到）
-- **B**: 实现 `deepEqual(a: unknown, b: unknown): boolean`（深比较，处理数组、对象、基本类型）
+骨架文件：[frontend/src/exercises/bonus.ts](../frontend/src/exercises/bonus.ts)
+
+挑至少一个实现：
+- **A**: `debounce<T extends (...args: any[]) => any>(fn: T, ms: number): T` —— 防抖函数，Lab 3 会用到
+- **B**: `deepEqual(a: unknown, b: unknown): boolean` —— 深比较，处理数组、对象、基本类型
 - **C**: 给 `groupBy` 加一个重载：`keyFn` 返回 number 时，返回类型应该是 `Record<number, T[]>`
 
 ---

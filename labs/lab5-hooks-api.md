@@ -8,7 +8,6 @@
 ## 学习目标
 
 - 学会写自定义 Hook
-- 理解"逻辑复用"的现代方式（不是高阶组件，是 hook）
 - 用 axios 替代 fetch
 - 统一的 loading / error 处理
 - 请求取消 (AbortController)
@@ -18,41 +17,30 @@
 ## 背景知识
 
 ### 自定义 Hook 是什么
-就是一个**名字以 `use` 开头**、**内部调用了其他 hook** 的函数。仅此而已。
+名字以 `use` 开头、内部调用了其他 hook 的函数。
 
 ```ts
-// 把 Lab 3 的草稿逻辑抽出来
 function useDraft(key: string) {
   const [text, setText] = useState(() => localStorage.getItem(key) ?? '');
-
   useEffect(() => {
     const t = setTimeout(() => localStorage.setItem(key, text), 1000);
     return () => clearTimeout(t);
   }, [key, text]);
-
   return [text, setText] as const;
 }
-
-// 用
-const [draft, setDraft] = useDraft('chat:draft');
 ```
 
 **核心规则**（必背）：
 1. hook 只能在**组件顶层**或**其他 hook 内部**调用 —— 不能在 if/for/回调里调
-2. hook 名字必须以 `use` 开头（ESLint 靠这个检查上一条规则）
+2. hook 名字必须以 `use` 开头
 
-### Hook 是怎么"知道"是哪个组件的状态的
-靠**调用顺序**。React 内部给每个组件维护一个 hook 列表，每次渲染按顺序读。这就是为什么 hook 不能写在 if 里 —— 顺序变了，状态就错位了。
-
-### axios
-`fetch` 是浏览器原生 API，axios 是一个第三方库，差别：
-- 自动 JSON（不用 `JSON.stringify` / `.json()`）
+### 为什么用 axios
+- 自动 JSON（不用手动 `JSON.stringify` / `.json()`）
 - 错误抛异常（fetch 的 4xx/5xx 不会 reject）
 - 拦截器（统一加 token、统一处理错误）
 - 取消请求更方便
-- 浏览器 + Node 都能用
 
-**几乎所有企业 React 项目都用 axios 或类似封装**，所以这里我们换掉 fetch。
+**几乎所有企业 React 项目都用 axios 或类似封装**。
 
 ---
 
@@ -65,81 +53,30 @@ cd frontend
 npm install axios
 ```
 
+骨架文件已经准备好：
+- [frontend/src/api/client.ts](../frontend/src/api/client.ts) —— axios 全局客户端 + 拦截器
+- [frontend/src/api/chat.ts](../frontend/src/api/chat.ts) —— 聊天 API
+- [frontend/src/hooks/useChat.ts](../frontend/src/hooks/useChat.ts) —— 业务 hook
+- [frontend/src/hooks/useApi.ts](../frontend/src/hooks/useApi.ts) —— 通用 hook（Task 5.4）
+
 ---
 
-### Task 5.1 — 建立 API 层
+### Task 5.1 — API 层
 
-新建 `src/api/client.ts`：
-```ts
-import axios from 'axios';
-
-export const apiClient = axios.create({
-  baseURL: '/',                    // 由 vite proxy 转发
-  timeout: 10_000,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-// 响应拦截器：统一错误信息
-apiClient.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    // TODO: 把 axios 的错误转换成更友好的 Error
-    // 提示：err.response?.status、err.message、err.code === 'ECONNABORTED' (超时)
-    return Promise.reject(err);
-  },
-);
-```
-
-新建 `src/api/chat.ts`：
-```ts
-import { apiClient } from './client';
-
-export interface ChatRequest {
-  text: string;
-}
-export interface ChatResponse {
-  message: string;
-}
-
-export async function postChat(req: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
-  const res = await apiClient.post<ChatResponse>('/chat', req, { signal });
-  return res.data;
-}
-```
+打开 [api/client.ts](../frontend/src/api/client.ts) 和 [api/chat.ts](../frontend/src/api/chat.ts)，按 TODO 实现。
 
 要求：
-- 所有 API 调用都通过 `apiClient`，**不要在组件里直接用 axios 或 fetch**
+- 所有 API 调用都走 `apiClient`，**不要在组件里直接 import axios 或用 fetch**
 - 每个 API 函数都有明确的请求/响应类型
-- 函数支持传入 `AbortSignal`（用于取消，下一步会用）
+- `postChat` 支持传入 `AbortSignal`
 
 ---
 
-### Task 5.2 — 自定义 hook `useChat`
+### Task 5.2 — `useChat` hook
 
-新建 `src/hooks/useChat.ts`，把 App.tsx 里"发送消息 + 维护消息列表"的全部逻辑搬进来：
+打开 [hooks/useChat.ts](../frontend/src/hooks/useChat.ts)，把 Lab 4 里 App.tsx / ChatPage 里"维护消息列表 + 发送"的全部逻辑搬进来实现。
 
-```ts
-export interface UseChatReturn {
-  messages: Message[];
-  send: (text: string) => Promise<void>;
-  clear: () => void;
-  loading: boolean;
-  error: string | null;
-}
-
-export function useChat(): UseChatReturn {
-  // TODO
-}
-```
-
-实现要求：
-- 内部用 `useState` 管 `messages`、`loading`、`error`
-- 用 `useRef` 管自增 id
-- `send(text)` 完成：append user → append placeholder → call `postChat` → replace placeholder
-- 请求失败：把 placeholder 改成红色错误消息，`error` 设为错误信息
-- `clear()` 清空消息
-
-重构后 App.tsx：
+重构 App.tsx：
 ```tsx
 export default function App() {
   const { messages, send, clear, loading, error } = useChat();
@@ -148,13 +85,13 @@ export default function App() {
       <Header onClear={clear} canClear={messages.length > 0} />
       <MessageList messages={messages} />
       <ChatInput onSend={send} disabled={loading} />
-      {error && <Banner>{error}</Banner>}
+      {error && <div style={{ color: 'red' }}>{error}</div>}
     </>
   );
 }
 ```
 
-**App 应该完全没有任何 fetch / setMessages 的逻辑**。
+**App 应该完全没有任何 axios / setMessages 的逻辑**。
 
 ---
 
@@ -162,16 +99,16 @@ export default function App() {
 
 需求：用户点了发送但还没收到响应时，又点了"清空对话"，应该把进行中的请求取消掉，避免后到的响应污染界面。
 
-实现：
-- 在 `useChat` 里用 `useRef` 持有 `AbortController`
-- 发送前 `controller.abort()` 上一次（如果有）
-- 创建新的 controller，把 signal 传给 `postChat`
-- `clear()` 也调一次 `controller.abort()`
+在 `useChat` 里实现：
+- `useRef<AbortController | null>` 持有当前进行中的 controller
+- 发送前 `abort()` 上一次，新建一个传给 `postChat`
+- `clear()` 也 abort 一下
+- catch 时用 `axios.isCancel(e)` 过滤"取消错误"
 
 测试方法：
-1. 后端 ChatController 里临时加 `Thread.sleep(5000)` 模拟慢请求
+1. 后端 [ChatController.java](../backend/src/main/java/com/example/chat/ChatController.java) 临时加 `Thread.sleep(5000)` 模拟慢请求
 2. 点发送 → 立刻点清空 → 5 秒后不应该有任何 bot 消息出现
-3. 测完别忘了删 sleep
+3. 测完删掉 sleep
 
 <details>
 <summary>提示</summary>
@@ -180,15 +117,15 @@ export default function App() {
 const abortRef = useRef<AbortController | null>(null);
 
 async function send(text: string) {
-  abortRef.current?.abort();           // 取消上一次
+  abortRef.current?.abort();
   const controller = new AbortController();
   abortRef.current = controller;
   try {
     const data = await postChat({ text }, controller.signal);
     // ...
   } catch (e) {
-    if (axios.isCancel(e)) return;     // 被取消的不算错
-    // 真错误处理
+    if (axios.isCancel(e)) return;
+    // 真错误
   }
 }
 ```
@@ -199,40 +136,20 @@ async function send(text: string) {
 
 ### Task 5.4 — 通用 `useApi` hook（进阶）
 
-抽一个更通用的 hook，处理 loading/error 模板：
-
-```ts
-export interface UseApiReturn<TArgs extends any[], TResult> {
-  loading: boolean;
-  error: string | null;
-  data: TResult | null;
-  run: (...args: TArgs) => Promise<TResult | null>;
-  reset: () => void;
-}
-
-export function useApi<TArgs extends any[], TResult>(
-  fn: (...args: TArgs) => Promise<TResult>,
-): UseApiReturn<TArgs, TResult> {
-  // TODO
-}
-```
-
-用法示例（不必在 useChat 里用，但写一个 demo 文件验证）：
-```ts
-const { run, loading, error, data } = useApi(postChat);
-await run({ text: 'hi' });
-```
+打开 [hooks/useApi.ts](../frontend/src/hooks/useApi.ts)，按 TODO 实现。
 
 要求：
-- `run` 内部 try/catch，设置 loading/error/data
-- 卸载组件时**取消未完成的请求**（用 `useRef + AbortController`，挂载/卸载用 `useEffect`）
-- 类型完全正确，不用 `any`
+- `run` 内 try/catch，设置 loading / error / data
+- 卸载组件时取消未完成的请求
+- 完全正确的泛型，不用 `any`
+
+写一个 demo 文件 `src/hooks/useApi.demo.tsx` 或直接在 App 里临时用一次，验证它能工作。
 
 ---
 
-### Task 5.5 — 给 axios 加请求 ID 日志（可选但推荐）
+### Task 5.5 — 请求 ID 日志（可选）
 
-在 `apiClient.interceptors.request.use(...)` 里给每个请求加一个 UUID，并在 console.log 打：
+在 [api/client.ts](../frontend/src/api/client.ts) 加请求/响应拦截器，给每个请求一个 UUID，console.log 打：
 ```
 [req abc123] POST /chat {text:"hi"}
 [res abc123] 200 OK {message:"hello"}  120ms
@@ -245,28 +162,27 @@ await run({ text: 'hi' });
 ## 验收清单
 
 - [ ] axios 已安装
-- [ ] `src/api/client.ts` 和 `src/api/chat.ts` 存在
+- [ ] [api/client.ts](../frontend/src/api/client.ts) 和 [api/chat.ts](../frontend/src/api/chat.ts) 实现完整
 - [ ] App.tsx 不再直接出现 `fetch` 或 `axios`
-- [ ] `useChat` hook 完整实现，App.tsx < 30 行
+- [ ] `useChat` 实现完整，App.tsx 简洁
 - [ ] 请求支持取消（人工测试通过）
-- [ ] 实现了 `useApi` 通用 hook，至少在测试文件里 demo 调用一次
-- [ ] 卸载组件时取消请求（在 React DevTools 里手动 unmount 验证）
-- [ ] 所有 hook 严格遵守命名规则（`use` 开头）
-- [ ] 所有 hook 没有"条件调用"违规（开 ESLint 看 `react-hooks/rules-of-hooks` 没报错）
+- [ ] `useApi` 通用 hook 实现，至少 demo 调用一次
+- [ ] 所有 hook 命名以 `use` 开头
+- [ ] ESLint 无 `react-hooks/rules-of-hooks` 报错
 
 ---
 
 ## 自检思考
 
 - 为什么 `useChat` 返回的是对象而不是数组？什么时候适合返回数组（像 `useState`）？
-- 如果在 `useChat` 里写 `if (someCondition) useState(...)`，会出什么问题？
+- 在 `if (cond) useState(...)` 里调 hook 会出什么问题？
 - AbortController 取消请求后，浏览器 Network 面板里那条请求会显示什么状态？
 
 <details>
 <summary>答案</summary>
 
-- 返回字段多 + 调用方按需取，对象更清晰。返回数组适合"几乎所有人都要前两个"的场景（useState 就两个值，且方向稳定）。
-- 第二次渲染时 hook 顺序变了，React 会读错状态/effect，行为完全乱掉。这就是 hooks 第一条规则的根本原因。
+- 返回字段多 + 按需取，对象更清晰。数组适合"几乎所有人都要前两个"的场景。
+- 第二次渲染时 hook 顺序变了，React 内部状态错位，行为完全乱掉。
 - "(canceled)" / "(aborted)"。
 </details>
 
@@ -274,9 +190,9 @@ await run({ text: 'hi' });
 
 ## 选做加分项
 
-- **A**: 让 `apiClient` 拦截器在 401 时自动重试一次（先模拟后端返回 401）
-- **B**: 写一个 `usePolling(fn, interval)` hook：每隔 N 秒调一次 fn，组件卸载时清掉 timer
-- **C**: 把 `useChat` 的 `messages` 改成用 `useReducer` 管理，体会 reducer 适合什么场景
+- **A**: 拦截器在 401 时自动重试一次（先模拟后端 401）
+- **B**: 写一个 `usePolling(fn, interval)` hook：每隔 N 秒调一次 fn，卸载时 clear
+- **C**: 把 `useChat` 的 `messages` 改成用 `useReducer` 管理
 
 ---
 

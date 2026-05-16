@@ -38,66 +38,37 @@ SPA：点链接 → JS 拦截事件 → 修改 URL（History API）→ React 根
 
 // 组件内：
 const navigate = useNavigate();
-navigate('/chat');
-
 const { id } = useParams();
 const [params, setParams] = useSearchParams();
 
-// 链接（不要用 <a>，会真刷新）
-<Link to="/chat">聊天</Link>
+<Link to="/chat">聊天</Link>     {/* 不要用 <a>，会真刷新 */}
 <NavLink to="/chat" className={({ isActive }) => isActive ? 'on' : ''}>聊天</NavLink>
 ```
-
-### 路由守卫
-React Router 没有内建守卫，常见做法是写一个 `<RequireAuth>` 组件包住要保护的路由。
 
 ---
 
 ## 任务
 
-### Task 6.0 — 后端扩展（动手 5 分钟）
+### Task 6.0 — 后端：登录 + /me
 
-打开 [backend/src/main/java/com/example/chat/ChatController.java](../backend/src/main/java/com/example/chat/ChatController.java)，加两个简单接口：
+骨架文件：[backend/src/main/java/com/example/chat/AuthController.java](../backend/src/main/java/com/example/chat/AuthController.java)
 
-```java
-@PostMapping("/login")
-public Map<String, Object> login(@RequestBody Map<String, String> body) {
-    String username = body.get("username");
-    String password = body.get("password");
-    // 简单 mock：用户名 == 密码 即通过
-    if (username != null && username.equals(password)) {
-        return Map.of("token", "fake-token-" + username, "username", username);
-    }
-    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid credentials");
-}
-
-@GetMapping("/me")
-public Map<String, String> me(@RequestHeader(value = "Authorization", required = false) String auth) {
-    if (auth == null || !auth.startsWith("Bearer fake-token-")) {
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "no token");
-    }
-    String username = auth.substring("Bearer fake-token-".length());
-    return Map.of("username", username);
-}
-```
-
-记得 import：
-```java
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-```
+打开实现，按文件里注释写两个接口。规则极简：
+- `POST /login` body `{username, password}` → username == password 通过，返回 `{token, username}`，token 用 `"fake-token-" + username`
+- `GET /me` header `Authorization: Bearer fake-token-xxx` → `{username}`，没有 token 或前缀不对就 401
 
 测试：
 ```bash
-curl -X POST http://localhost:8080/login -H 'Content-Type: application/json' -d '{"username":"alice","password":"alice"}'
+curl -X POST http://localhost:8080/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","password":"alice"}'
 # {"token":"fake-token-alice","username":"alice"}
 
 curl http://localhost:8080/me -H 'Authorization: Bearer fake-token-alice'
 # {"username":"alice"}
 ```
 
-更新 [frontend/vite.config.ts](../frontend/vite.config.ts) 的 proxy，**多代理两个路径**（或者改成代理整个 `/api` 前缀，可选重构）：
+更新 [frontend/vite.config.ts](../frontend/vite.config.ts) proxy：
 ```ts
 proxy: {
   '/chat': 'http://localhost:8080',
@@ -117,100 +88,63 @@ npm install react-router-dom
 
 ---
 
-### Task 6.2 — 设计路由结构
+### Task 6.2 — 路由结构
 
-要求实现这些页面：
+骨架文件已就位：
 
-| 路径 | 组件 | 说明 |
-|---|---|---|
-| `/login` | `<LoginPage />` | 未登录可访问；已登录访问要重定向到 `/chat` |
-| `/chat` | `<ChatPage />` | 需登录 |
-| `/history` | `<HistoryPage />` | 需登录，展示**最近 N 条**聊天记录（用 localStorage 存） |
-| `/history/:id` | `<HistoryDetail />` | 需登录，展示某条记录详情；id 不存在显示空 |
-| `/` | 重定向到 `/chat` | |
-| `*` | `<NotFound />` | 404 |
-
-布局：登录页**没有**头部；其余页面共享一个 `<MainLayout />`（顶部导航栏 + 内容区 + `<Outlet />`）。
-
-文件组织建议：
 ```
-src/
-├── App.tsx              # 只放 <BrowserRouter><Routes>...</Routes>
-├── pages/
-│   ├── LoginPage.tsx
-│   ├── ChatPage.tsx
-│   ├── HistoryPage.tsx
-│   ├── HistoryDetail.tsx
-│   └── NotFound.tsx
+frontend/src/
+├── auth/
+│   ├── RequireAuth.tsx   ← 路由守卫
+│   └── useAuth.ts        ← 临时方案，Lab 7 会被替换
 ├── layouts/
-│   └── MainLayout.tsx   # 顶部导航 + <Outlet />
-└── auth/
-    ├── RequireAuth.tsx
-    └── useAuth.ts       # 简单的本地 hook，下一步实现
+│   └── MainLayout.tsx    ← 共享布局
+└── pages/
+    ├── LoginPage.tsx
+    ├── ChatPage.tsx
+    ├── HistoryPage.tsx
+    ├── HistoryDetail.tsx
+    └── NotFound.tsx
 ```
+
+需要实现的路由表：
+
+| 路径 | 元素 | 守卫 |
+|---|---|---|
+| `/login` | `<LoginPage />` | 已登录则重定向到 `/chat` |
+| `/chat` | `<ChatPage />` | `<RequireAuth>` |
+| `/history` | `<HistoryPage />` | `<RequireAuth>` |
+| `/history/:id` | `<HistoryDetail />` | `<RequireAuth>` |
+| `/` | 重定向到 `/chat` | |
+| `*` | `<NotFound />` | |
+
+登录页 **没有**头部；其余页面共享 `<MainLayout />`（顶部导航 + `<Outlet />`）。
+
+把路由表写到 [App.tsx](../frontend/src/App.tsx)，原来的 ChatPage 逻辑搬到 [ChatPage.tsx](../frontend/src/pages/ChatPage.tsx)。
 
 ---
 
-### Task 6.3 — `useAuth` hook（临时方案）
+### Task 6.3 — `useAuth`（临时方案）
 
-先用一个简单实现（Lab 7 会替换成 Zustand）：
-```ts
-// auth/useAuth.ts
-export function useAuth() {
-  const [user, setUser] = useState<{ username: string } | null>(() => {
-    const u = localStorage.getItem('user');
-    return u ? JSON.parse(u) : null;
-  });
+打开 [auth/useAuth.ts](../frontend/src/auth/useAuth.ts) 实现。
 
-  function login(username: string, password: string) {
-    // 调 /login → 拿 token → 存 localStorage → setUser
-  }
-  function logout() {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    setUser(null);
-  }
-
-  return { user, login, logout };
-}
-```
-
-**问题**：这个 hook 在不同组件里调，state 互相独立 —— 会导致 LoginPage 登录成功后，MainLayout 还显示未登录。
-
-**临时解决**：所有页面里"用户态"的判断都直接读 `localStorage`，不靠 useState。或者用 React Context 把 user state 提升到根（也可以）。这只是过渡，Lab 7 用 Zustand 优雅解决。
+注意问题：useState 在不同组件实例间互相独立，所以 `useAuth` 在多处调用拿到的 `user` 不会同步。
+**临时解决**：读用户态时直接 `localStorage.getItem(...)`，或把 user state 提升到根（Context）。
+这是过渡，Lab 7 用 Zustand 优雅解决。
 
 ---
 
 ### Task 6.4 — `RequireAuth` 路由守卫
 
-```tsx
-import { Navigate, useLocation } from 'react-router-dom';
+打开 [auth/RequireAuth.tsx](../frontend/src/auth/RequireAuth.tsx) 实现。
+关键点：
 
-interface Props { children: React.ReactNode }
+- 没 token → `<Navigate to="/login" state={{ from: location.pathname }} replace />`
+- `replace` 不能省，否则点后退会卡循环
 
-export function RequireAuth({ children }: Props) {
-  const token = localStorage.getItem('token');
-  const location = useLocation();
-
-  if (!token) {
-    // 把当前要去的路径带上，登录完成后跳回
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
-  }
-  return <>{children}</>;
-}
-```
-
-用法：
-```tsx
-<Route path="/chat" element={<RequireAuth><ChatPage /></RequireAuth>} />
-```
-
-登录成功后跳回原页面：
-```tsx
-const navigate = useNavigate();
-const location = useLocation();
+登录成功后跳回：
+```ts
 const from = (location.state as any)?.from ?? '/chat';
-// 登录成功
 navigate(from, { replace: true });
 ```
 
@@ -218,7 +152,7 @@ navigate(from, { replace: true });
 
 ### Task 6.5 — axios 拦截器自动加 token
 
-在 [src/api/client.ts](../frontend/src/api/client.ts) 加请求拦截器：
+在 [api/client.ts](../frontend/src/api/client.ts) 加：
 ```ts
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -227,103 +161,77 @@ apiClient.interceptors.request.use((config) => {
 });
 ```
 
-响应拦截器：401 时清掉 token 并跳登录：
-```ts
-apiClient.interceptors.response.use(
-  (r) => r,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      // 注意：拦截器里不能用 useNavigate，用 window.location 或路由对象
-      window.location.href = '/login';
-    }
-    return Promise.reject(err);
-  },
-);
-```
+响应拦截器：401 时清掉 token 并跳登录（拦截器里没有 useNavigate，用 `window.location.href = '/login'`）。
 
 ---
 
-### Task 6.6 — `HistoryPage` 实现
+### Task 6.6 — `HistoryPage` & `HistoryDetail`
 
 需求：
-- 把聊天记录（一组 message[]）按"会话"存到 localStorage（每打开一次 ChatPage 算一个会话；点击清空算结束）
+- 每次进入 ChatPage 算一个会话；点"清空"或离开页面时把当前 messages 归档到 localStorage 的 `chat:sessions`
 - HistoryPage 列出所有会话：时间、消息数、首条消息预览
-- 点一条会话进入 `/history/:id`，看完整对话
+- 点一条进 `/history/:id`，看完整对话
 
-存储结构建议：
+数据结构建议：
 ```ts
 interface Session {
   id: string;          // crypto.randomUUID()
   createdAt: number;
   messages: Message[];
 }
-// localStorage 里存 Session[] under key 'chat:sessions'
 ```
 
-**思考**：这种"持久化数据"放 localStorage 合适吗？什么时候该换成后端？
+打开 [HistoryPage.tsx](../frontend/src/pages/HistoryPage.tsx) 和 [HistoryDetail.tsx](../frontend/src/pages/HistoryDetail.tsx) 实现。
 
 ---
 
 ### Task 6.7 — `MainLayout` 顶部导航
 
-```tsx
-<header>
-  <Logo />
-  <nav>
-    <NavLink to="/chat">聊天</NavLink>
-    <NavLink to="/history">历史</NavLink>
-  </nav>
-  <UserMenu username={...} onLogout={...} />
-</header>
-<main><Outlet /></main>
-```
+打开 [MainLayout.tsx](../frontend/src/layouts/MainLayout.tsx) 实现。
 
 要求：
-- 当前路由对应的 nav 链接高亮（用 `NavLink` 的 `isActive`）
-- 用户菜单显示用户名 + "退出" 按钮
-- 点退出后跳到 `/login`
+- `<NavLink>` 实现当前路由高亮
+- 显示当前用户名 + 退出按钮
+- 退出后跳 `/login`
 
 ---
 
 ## 验收清单
 
-- [ ] 后端 `/login` 和 `/me` 接口能用
-- [ ] 路由结构完全符合 Task 6.2 表格
-- [ ] 未登录访问 `/chat` 会跳到 `/login`，登录后跳回 `/chat`
-- [ ] 已登录访问 `/login` 会被自动重定向到 `/chat`
-- [ ] axios 自动给所有请求加上 `Authorization: Bearer xxx`
-- [ ] 后端返回 401 时前端自动跳登录
+- [ ] 后端 `/login` 和 `/me` 接口工作
+- [ ] 路由结构符合 Task 6.2 表格
+- [ ] 未登录访问 `/chat` 跳 `/login`，登录后跳回原页
+- [ ] 已登录访问 `/login` 重定向到 `/chat`
+- [ ] axios 自动加 Authorization
+- [ ] 401 自动跳登录
 - [ ] 顶部导航当前页高亮
-- [ ] HistoryPage 能列出历史会话，点击进入详情
-- [ ] 详情页路径形如 `/history/<uuid>`，刷新页面能直接进
-- [ ] 输入不存在的 id `/history/foo` 显示空状态而不是崩溃
-- [ ] 输入完全不存在的路径（如 `/foo`）显示 404 页面
+- [ ] HistoryPage 列出会话，点击进入详情，刷新仍能进
+- [ ] `/history/不存在的id` 显示空状态，不崩
+- [ ] `/不存在的路径` 显示 404
 
 ---
 
 ## 自检思考
 
-- 为什么要 `<Navigate replace />` 而不是默认的 push？
-- localStorage 存 token 有什么安全风险？比 cookie + HttpOnly 差在哪？
+- 为什么要 `<Navigate replace />` 而不是默认 push？
+- localStorage 存 token 有什么安全风险？比 HttpOnly cookie 差在哪？
 - `useNavigate()` 为什么是 hook 不是普通函数？
 
 <details>
 <summary>答案</summary>
 
-- 用 push 的话，用户点"后退"会回到守卫的那个页面，又被弹到 login，造成卡循环。replace 替换当前历史栈条目，后退不会重现这次跳转。
-- XSS 风险：任何能在你页面跑 JS 的攻击者都能读到 localStorage 的 token。HttpOnly cookie JS 读不到。生产环境敏感场景必须用 cookie + HttpOnly + Secure + SameSite。
-- 因为需要拿到当前的 router 上下文（react context），普通函数拿不到。Hook 是 React 在组件渲染期间提供上下文的标准方式。
+- 用 push 的话，用户点"后退"会回到守卫页，又被弹到 login，循环。replace 替换当前历史栈条目。
+- XSS 风险：任何能在你页面跑 JS 的攻击者都能读 localStorage。HttpOnly cookie JS 读不到。
+- 因为它需要拿当前的 router context（React context），普通函数拿不到。
 </details>
 
 ---
 
 ## 选做加分项
 
-- **A**: 实现一个 "面包屑" 组件，根据当前路由自动显示（如 `历史 > 会话详情`）
-- **B**: 给 `ChatPage` 加查询参数 `/chat?topic=xx`，输入框初始值取自该参数
-- **C**: 实现路由 transition 动画（用 `react-router-dom` 的 location key + CSS animation）
+- **A**: 面包屑组件，根据当前路由自动显示（如 `历史 > 会话详情`）
+- **B**: `ChatPage` 支持 `/chat?topic=xx`，输入框初值取自该参数
+- **C**: 路由切换动画
 
 ---
 
