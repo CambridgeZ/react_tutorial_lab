@@ -18,29 +18,47 @@
 
 ## 背景知识
 
-### 不可变更新
-React 比较 state 用 `===`（引用）。所以：
+### 不可变更新（Immutable Update）
+
+**一句话**：永远不要修改"已有"的对象/数组，而是创建一个"新"的对象/数组替换它。
+
+**为什么**：React 用 `Object.is`（引用比较）判断 state 有没有变 —— 只看指针，不看内容。这样判断是 O(1)，而且 `React.memo`、`useMemo` 等优化都靠它。代价就是你必须每次给它"新引用"，否则 React 以为没变 → 不重渲。
+
 ```ts
-// ❌ 错：直接 mutate，React 不会重新渲染
+// ❌ 错：改了原对象，引用没变 → React 看不出变化，不重渲
 items.push(newItem);
 setItems(items);
 
-// ✅ 对：创建新数组
+// ✅ 对：新数组，新引用
 setItems([...items, newItem]);
 
-// ✅ 对：更新对象
+// ✅ 对：新对象
 setUser({ ...user, name: 'new' });
 ```
 
+常用套路：
+- **追加**：`[...arr, x]`
+- **删除**：`arr.filter(x => x.id !== id)`
+- **改某项**：`arr.map(x => x.id === id ? {...x, name: 'new'} : x)`
+- **嵌套**：每一层都要新建 → `{...state, user: {...state.user, age: 21}}`
+
+警惕这些方法（**会改原数组**）：`push / pop / shift / unshift / splice / sort / reverse`。
+
+
 ### 函数式更新
+
 当新值依赖旧值时，**永远用函数形式**：
 ```ts
-// ❌ 不安全：input 是这次渲染的"快照"
+// ❌ 不安全：count 是这次渲染的"快照"
 setCount(count + 1);
 
-// ✅ 安全：prev 一定是最新值
+// ✅ 安全：prev 由 React 喂进来，一定是最新值
 setCount(prev => prev + 1);
 ```
+
+**为什么**：每次组件渲染，函数体里的 `count` 都是**这一次渲染的快照**，不会跟着 state 变。所以连续调三次 `setCount(count + 1)`，三次都基于同一个旧值 → 只 +1。在异步代码 / 定时器 / await 之后尤其危险，闭包锁住的值可能早就过时了。`prev =>` 形式由 React 把"当前最新值"喂给你，绕开闭包陷阱。
+
+**口诀**：看到 `setX(... x ...)` 里又出现了 `x`，立刻改成 `setX(prev => ...prev...)`。
 
 ### 列表渲染
 ```tsx
