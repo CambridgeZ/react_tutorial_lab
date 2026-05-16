@@ -8,6 +8,12 @@
  * 提示：泛型 T 是元素类型，返回 Record<string, T[]>
  */
 export function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string, T[]> {
-  // TODO
-  throw new Error('not implemented');
+  return arr.reduce((acc, item) => {
+    const key = keyFn(item);
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(item);
+    return acc;
+  }, {} as Record<string, T[]>);
 }

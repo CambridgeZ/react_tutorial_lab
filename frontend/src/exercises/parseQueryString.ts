@@ -14,6 +14,33 @@
  * 提示：返回值类型用 Record<string, string | string[]>
  */
 export function parseQueryString(qs: string): Record<string, string | string[]> {
-  // TODO
-  throw new Error('not implemented');
+    const result: Record<string, string | string[]> = {};
+    let len = qs.length;
+
+    let thisName = '';
+    const begin = qs[0] === '?' ? 1 : 0;
+    for(let i = begin; i < len; i++) {
+        if(qs[i] != '=') {
+            thisName += qs[i];
+        }
+        else {
+            let thisValue = '';
+            while (++i < len && qs[i] != '&') {
+                thisValue += qs[i];
+            }
+
+            if(result[thisName] == null) {
+                result[thisName] = thisValue;
+            }
+            else if(typeof result[thisName] === 'string') {
+                result[thisName] = [result[thisName] as string, thisValue];
+            }
+            else {
+                (result[thisName] as string[]).push(thisValue);
+            }
+
+            thisName = '';
+        }
+    }
+    return result;
 }
