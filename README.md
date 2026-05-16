@@ -2,7 +2,7 @@
 
 一个最小可运行的全栈 Demo，用来熟悉 React + TypeScript 前端和 Spring Boot 后端的交互。
 
-> 📚 **想系统学习？** 跳到 [LABS.md](LABS.md) 看 8 关渐进式 Lab（CMU 15-445 风格），按顺序做完你就能上手企业前端项目了。
+> 📚 **想系统学习？** 跳到 [LABS.md](LABS.md) 看 8 关渐进式 Lab按顺序做完你就能上手企业前端项目了。
 
 ```
 ts_react_demo/
