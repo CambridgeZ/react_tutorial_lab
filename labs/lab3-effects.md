@@ -186,12 +186,16 @@ useEffect(() => {
 import { useRef, useEffect } from 'react';
 
 function Foo() {
+  // 1. 建一个"空盒子"，将来会装真实的 <input> DOM 节点
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // 2. 挂载完成后跑一次：从盒子里掏出 input，调用它原生的 focus()
   useEffect(() => {
-    inputRef.current?.focus();   // 挂载后让 input 获得焦点
+    inputRef.current?.focus();
   }, []);
 
+  // 3. 在 JSX 里：ref={inputRef} 告诉 React："这个 input 一渲染出来，
+  //    就把它的真实 DOM 节点塞到 inputRef.current 里"
   return <input ref={inputRef} />;
 }
 ```
