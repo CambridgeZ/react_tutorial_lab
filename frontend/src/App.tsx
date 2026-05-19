@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 // 后端 /chat 返回的数据结构
 interface ChatResponse {
@@ -22,12 +22,72 @@ export default function App() {
 
   const [messages, setMessages] = useState<Message[]>([]);
 
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const idRef = useRef(0);
+  const makeId = () => ++idRef.current;
+
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
+  }, [messages.length]);
+
+  useEffect(() => {
+    if(!loading){
+        inputRef.current?.focus();
+    }
+  }, [loading]);
+
+  // Task 3.5: 草稿自动保存（防抖 1 秒）
+  useEffect(() => {
+    console.log('draft effect run, input =', input);   // Task 3.6
+    const t = setTimeout(() => {
+      localStorage.setItem('chat:draft', input);
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [input]);
+
+  // Task 3.5: 挂载时从 localStorage 恢复草稿
+  useEffect(() => {
+    const saved = localStorage.getItem('chat:draft');
+    if (saved) setInput(saved);
+  }, []);
+
+  // Task 3.4: 切回前台时清零未读
+  useEffect(() => {
+    console.log('register visibility listener');         // Task 3.6
+    const onVisibleChange = () => {
+      if (!document.hidden) {
+        setUnreadCount(0);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibleChange);
+    return () => {
+      console.log('remove visibility listener');         // Task 3.6
+      document.removeEventListener('visibilitychange', onVisibleChange);
+    };
+  }, []);
+
+  // Task 3.4: 同步 document.title
+  useEffect(() => {
+    document.title = unreadCount > 0 ? `(${unreadCount}) Chat Demo` : 'Chat Demo';
+    return () => {
+      document.title = 'Chat Demo';
+    };
+  }, [unreadCount]);
+
   async function handleClick() {
     setLoading(true);
     const userInput = input;          // 先保存当前输入
     setInput('');                     // 立刻清空输入框
-    setMessages(prev => [...prev, { id: prev.length + 1, role: 'user', text: userInput, createdAt: Date.now() }]);
-    const placeHolderId = messages.length + 2;
+    const userId = makeId();
+    setMessages(prev => [...prev, { id: userId, role: 'user', text: userInput, createdAt: Date.now() }]);
+    const placeHolderId = makeId();
     setMessages(prev => [...prev, { id: placeHolderId, role: 'bot', text: '...', createdAt: Date.now() }]);
     try {
       const res = await fetch('/chat', {
@@ -45,6 +105,11 @@ export default function App() {
         ...prev.filter(msg => msg.id !== placeHolderId),
         { id: placeHolderId, role: 'bot', text: data.message, createdAt: Date.now() },
       ]);
+
+      // 拿到 bot 回复后，如果页面不可见，未读 +1
+      if (document.hidden) {
+        setUnreadCount(count => count + 1);
+      }
     } catch (err) {
       setMessages((prev) => [
         ...prev.filter(msg => msg.id !== placeHolderId),
@@ -60,6 +125,7 @@ export default function App() {
       <h1>Chat Demo</h1>
 
       <input
+        ref={inputRef}
         type="text"
         value={input}
         onChange={
@@ -112,6 +178,7 @@ export default function App() {
       </button>
 
       <div
+        ref={listRef}
         style={{
           marginTop: 20,
           padding: 12,
@@ -119,6 +186,8 @@ export default function App() {
           border: '1px solid #ccc',
           borderRadius: 4,
           background: '#fafafa',
+          maxHeight: 400,
+          overflowY: 'auto',
         }}
       >
         {messages.length === 0 ? (
