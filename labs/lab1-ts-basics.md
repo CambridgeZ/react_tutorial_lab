@@ -95,7 +95,7 @@ npx vitest run      # 单次跑
 - 实现：[frontend/src/exercises/groupBy.ts](../frontend/src/exercises/groupBy.ts)
 - 测试：[frontend/src/exercises/groupBy.test.ts](../frontend/src/exercises/groupBy.test.ts) —— **你自己写**，至少 3 个用例（含空数组）
 
-提示：reduce 写这个特别自然。如果不熟 reduce，去看我之前给你解释 reduce 的对话。
+提示：reduce 写这个特别自然。
 
 ---
 
