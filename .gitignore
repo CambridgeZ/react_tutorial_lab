@@ -1,0 +1,23 @@
+# OS files
+.DS_Store
+
+# Editor and IDE settings
+.idea/
+.vscode/
+*.iml
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.vite/
+target/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
