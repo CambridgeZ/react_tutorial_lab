@@ -17,6 +17,39 @@
 
 ## 背景知识
 
+### 什么是 Props
+
+**Props**（properties 的缩写）是父组件传给子组件的**只读数据**，是 React 组件之间通信最基本的方式。可以把组件想成一个函数，props 就是它的参数：
+
+```tsx
+// 定义组件 = 定义一个接收 props 的函数
+function Greeting(props: { name: string }) {
+  return <h1>Hello, {props.name}</h1>;
+}
+
+// 使用组件 = 像写 HTML 属性一样传 props
+<Greeting name="Alice" />
+```
+
+更常见的写法是用解构 + TS interface：
+
+```tsx
+interface GreetingProps {
+  name: string;
+}
+
+function Greeting({ name }: GreetingProps) {
+  return <h1>Hello, {name}</h1>;
+}
+```
+
+**关于 Props 的几个关键点**：
+
+1. **单向数据流**：props 只能父 → 子，子组件不能修改收到的 props（它是只读的）。如果子组件需要"通知"父组件，父组件要传一个**回调函数** prop 下去（见下面的 `onClick`）。
+2. **任何类型都能传**：字符串、数字、对象、数组、函数、甚至另一段 JSX（通过 `children`）。
+3. **props 变化会触发重渲染**：父组件每次传新的 props，子组件就会重新渲染。
+4. **必须有类型**：在 TS 里每个组件都要为 props 定义 interface/type，这是企业项目的硬性要求。
+
 ### Props 的类型
 ```tsx
 interface ButtonProps {
