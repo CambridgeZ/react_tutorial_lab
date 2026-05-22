@@ -6,7 +6,7 @@ import { ChatInput } from './components/ChatInput';
 
 // 后端 /chat 返回的数据结构
 interface ChatResponse {
-  message: Message;
+  message: string;
 }
 
 export default function App() {
@@ -38,8 +38,15 @@ export default function App() {
       }
 
       const data: ChatResponse = await res.json();
-      // 用本地自增 id 覆盖，避免和后端 id 撞
-      setMessages((prev) => [...prev, { ...data.message, id: nextId() }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: nextId(),
+          role: 'bot',
+          text: data.message,
+          createdAt: Date.now(),
+        },
+      ]);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
