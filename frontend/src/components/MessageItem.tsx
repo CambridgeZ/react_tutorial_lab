@@ -13,6 +13,22 @@ interface Props {
  * Lab 4 Task 4.1：实现这个组件。
  */
 export function MessageItem({ message }: Props) {
-  // TODO: 实现
-  return <div>TODO: {message.text}</div>;
+  const isUser = message.role === 'user';
+  return (
+    <div style={{ textAlign: isUser ? 'right' : 'left', margin: '4px 0' }}>
+      <span
+        style={{
+          display: 'inline-block',
+          padding: '6px 10px',
+          borderRadius: 8,
+          maxWidth: '80%',
+          wordBreak: 'break-word',
+          background: isUser ? '#1677ff' : '#e5e5e5',
+          color: isUser ? '#fff' : '#000',
+        }}
+      >
+        {message.text}
+      </span>
+    </div>
+  );
 }

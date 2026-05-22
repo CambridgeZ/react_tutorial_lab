@@ -1,26 +1,36 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { Message } from './types';
+import { Header } from './components/Header';
+import { MessageList } from './components/MessageList';
+import { ChatInput } from './components/ChatInput';
 
 // 后端 /chat 返回的数据结构
 interface ChatResponse {
-  message: string;
+  message: Message;
 }
 
 export default function App() {
-  // 输入框内容
-  const [input, setInput] = useState('');
-  // 展示在结果区的内容
-  const [result, setResult] = useState('');
   // 是否正在请求
   const [loading, setLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const idRef = useRef(0);
 
-  async function handleClick() {
+  function nextId() {
+    return ++idRef.current;
+  }
+
+  async function handleSend(text: string) {
     setLoading(true);
-    setResult('');
+    // 先把用户消息加入列表
+    setMessages((prev) => [
+      ...prev,
+      { id: nextId(), role: 'user', text, createdAt: Date.now() },
+    ]);
     try {
       const res = await fetch('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: input }),
+        body: JSON.stringify({ text }),
       });
 
       if (!res.ok) {
@@ -28,9 +38,18 @@ export default function App() {
       }
 
       const data: ChatResponse = await res.json();
-      setResult(data.message);
+      // 用本地自增 id 覆盖，避免和后端 id 撞
+      setMessages((prev) => [...prev, { ...data.message, id: nextId() }]);
     } catch (err) {
-      setResult(`请求失败: ${(err as Error).message}`);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: nextId(),
+          role: 'bot',
+          text: `请求失败: ${(err as Error).message}`,
+          createdAt: Date.now(),
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -38,42 +57,10 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 480, margin: '40px auto', fontFamily: 'sans-serif' }}>
-      <h1>Chat Demo</h1>
-
-      <input
-        type="text"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="随便输点什么..."
-        style={{ width: '100%', padding: 8, fontSize: 16, boxSizing: 'border-box' }}
-      />
-
-      <button
-        onClick={handleClick}
-        disabled={loading}
-        style={{ marginTop: 12, padding: '8px 16px', fontSize: 16 }}
-      >
-        {loading ? '请求中...' : '发送'}
-      </button>
-
-      <button
-        onClick={() => setInput('')}
-        style={{ marginTop: 12, marginLeft: 12, padding: '8px 16px', fontSize: 16 }}
-      >
-        清空
-      </button>
-
-      <div
-        style={{
-          marginTop: 20,
-          padding: 12,
-          minHeight: 60,
-          border: '1px solid #ccc',
-          borderRadius: 4,
-          background: '#fafafa',
-        }}
-      >
-        {result || <span style={{ color: '#999' }}>结果会显示在这里</span>}
+      <Header onClear={() => setMessages([])} canClear={messages.length > 0} />
+      <MessageList messages={messages} />
+      <div style={{ marginTop: 12 }}>
+        <ChatInput onSend={handleSend} disabled={loading} />
       </div>
     </div>
   );
