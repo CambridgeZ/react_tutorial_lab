@@ -19,6 +19,10 @@
 ### 自定义 Hook 是什么
 名字以 `use` 开头、内部调用了其他 hook 的函数。
 
+它不是 React 的新 API，就是函数。区别只在于：
+- 名字必须以 use 开头（让 React 和 ESLint 知道要按 Hook 规则检查它）。
+- 因为内部用了 Hook，它也必须遵守 Hook 规则
+
 ```ts
 function useDraft(key: string) {
   const [text, setText] = useState(() => localStorage.getItem(key) ?? '');
