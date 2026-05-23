@@ -16,14 +16,62 @@ export const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (res) => res,
   (err) => {
-    // TODO: 提取友好错误信息，比如：
-    //  - err.response?.status：HTTP 状态
-    //  - err.response?.data：后端返回的 body
-    //  - err.code === 'ECONNABORTED'：超时
-    //  - err.message：兜底
-    // 然后 reject 一个新的 Error，或 reject 原 err
-    return Promise.reject(err);
+    // 1. 用户主动取消（AbortController）：原样抛出，让 axios.isCancel() 能识别
+    if (axios.isCancel(err)) {
+      return Promise.reject(err);
+    }
+
+    // 2. 超时
+    if (err.code === 'ECONNABORTED') {
+      return Promise.reject(new Error('请求超时，请稍后重试'));
+    }
+
+    // 3. 请求发出但没收到响应（网络断 / CORS / 后端挂了）
+    if (!err.response) {
+      return Promise.reject(new Error('网络异常，请检查连接'));
+    }
+
+    // 4. 收到了响应：优先用后端返回的 error 字段，其次按状态码兜底
+    const { status, data } = err.response;
+    const backendMsg =
+      (typeof data === 'string' && data) ||
+      data?.error ||
+      data?.message;
+
+    if (backendMsg) {
+      return Promise.reject(new Error(backendMsg));
+    }
+
+    if (status >= 500) {
+      return Promise.reject(new Error(`服务器错误 (${status})，请稍后重试`));
+    }
+    if (status === 401) {
+      return Promise.reject(new Error('未登录或登录已过期'));
+    }
+    if (status === 403) {
+      return Promise.reject(new Error('没有权限'));
+    }
+    if (status === 404) {
+      return Promise.reject(new Error('资源不存在'));
+    }
+
+    // 5. 兜底
+    return Promise.reject(new Error(err.message || `请求失败 (${status})`));
   },
+);
+
+apiClient.interceptors.request.use(
+  // UUID + 时间戳组成的请求 ID，方便后端日志跟踪
+  (config) => {
+    const requestId = `${crypto.randomUUID()}-${Date.now()}`;
+    config.headers['X-Request-ID'] = requestId;
+    console.debug(`[API ${requestId}] ${config.method?.toUpperCase()} ${config.url}`, {
+      url: config.url,
+      method: config.method,
+      data: config.data,
+    });
+    return config;
+  }
 );
 
 // Lab 6 Task 6.5：请求拦截器自动加 Authorization

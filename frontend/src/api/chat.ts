@@ -21,5 +21,8 @@ export interface ChatResponse {
  *  - 返回 res.data
  */
 export async function postChat(_req: ChatRequest, _signal?: AbortSignal): Promise<ChatResponse> {
-  throw new Error('not implemented');
+  const response = await apiClient.post<ChatResponse>('/chat', _req, {
+    signal: _signal,
+  });
+  return response.data;
 }
