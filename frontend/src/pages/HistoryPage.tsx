@@ -8,6 +8,15 @@
  * 每一行展示：时间、消息数、首条消息预览。
  * 点击进入 /history/:id。
  */
+
+import { Message } from "../types";
+
+interface Session {
+  id: string;          // crypto.randomUUID()
+  createdAt: number;
+  messages: Message[];
+}
+
 export function HistoryPage() {
   // TODO
   return null;

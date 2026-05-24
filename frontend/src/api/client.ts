@@ -28,3 +28,8 @@ apiClient.interceptors.response.use(
 
 // Lab 6 Task 6.5：请求拦截器自动加 Authorization
 // apiClient.interceptors.request.use(...);
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
