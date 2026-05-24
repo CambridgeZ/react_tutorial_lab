@@ -207,6 +207,138 @@ frontend/src/
 
 把路由表写到 [App.tsx](../frontend/src/App.tsx)，原来的 ChatPage 逻辑搬到 [ChatPage.tsx](../frontend/src/pages/ChatPage.tsx)。
 
+#### 怎么把路由表翻译成 JSX —— 逐步拆解
+
+第一次写路由表很容易卡住。按下面顺序填，就不会乱：
+
+**Step 1：先搭最外层骨架**
+
+无论多复杂的路由表，最外层永远是这三层：
+```tsx
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* 路由一条条写在这里 */}
+      </Routes>
+    </BrowserRouter>
+  );
+}
+```
+
+**Step 2：把上面表格里"没有守卫、不要布局"的简单路由先放进去**
+
+`/login` 和 `*`（404）都不要顶部导航，直接平铺：
+```tsx
+<Routes>
+  <Route path="/login" element={<LoginPage />} />
+  <Route path="*" element={<NotFound />} />
+</Routes>
+```
+
+**Step 3：把"要共享布局"的路由包进布局路由**
+
+`/chat`、`/history`、`/history/:id`、`/` 都要带顶部导航，于是它们应该是 `<MainLayout />` 的子路由：
+```tsx
+<Routes>
+  {/* 布局路由：没有 path，仅给子路由套 MainLayout */}
+  <Route element={<MainLayout />}>
+    <Route path="/chat" element={<ChatPage />} />
+    <Route path="/history" element={<HistoryPage />} />
+    <Route path="/history/:id" element={<HistoryDetail />} />
+    {/* / 重定向到 /chat —— 用 <Navigate /> 渲染一个声明式跳转 */}
+    <Route path="/" element={<Navigate to="/chat" replace />} />
+  </Route>
+
+  <Route path="/login" element={<LoginPage />} />
+  <Route path="*" element={<NotFound />} />
+</Routes>
+```
+> 别忘了 `MainLayout.tsx` 里要有一个 `<Outlet />`，子路由才有地方渲染。
+
+**Step 4：给需要登录的路由套上 `<RequireAuth>`**
+
+只有 `/chat`、`/history`、`/history/:id` 要登录，把它们的 `element` 用 `<RequireAuth>` 包一层：
+```tsx
+<Route path="/chat" element={
+  <RequireAuth><ChatPage /></RequireAuth>
+} />
+<Route path="/history" element={
+  <RequireAuth><HistoryPage /></RequireAuth>
+} />
+<Route path="/history/:id" element={
+  <RequireAuth><HistoryDetail /></RequireAuth>
+} />
+```
+
+> 写三次显得啰嗦？可以再嵌一层布局路由，让所有子路由共用 `<RequireAuth>`：
+> ```tsx
+> <Route element={<MainLayout />}>
+>   <Route element={<RequireAuth><Outlet /></RequireAuth>}>
+>     <Route path="/chat" element={<ChatPage />} />
+>     <Route path="/history" element={<HistoryPage />} />
+>     <Route path="/history/:id" element={<HistoryDetail />} />
+>   </Route>
+>   <Route path="/" element={<Navigate to="/chat" replace />} />
+> </Route>
+> ```
+> 两种写法都对，选你看着顺眼的。
+
+**Step 5：补 `LoginPage` 的"已登录就跳走"**
+
+这一条不写在路由表里，而是在 `LoginPage` 组件顶部判断：
+```tsx
+// LoginPage.tsx
+const token = localStorage.getItem('token');
+if (token) return <Navigate to="/chat" replace />;
+```
+
+> 也可以另写一个 `<RedirectIfAuth>` 守卫包在 `<LoginPage />` 外面，原理一样。
+
+**最终骨架（参考，不要逐字照抄）**
+
+```tsx
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { MainLayout } from './layouts/MainLayout';
+import { RequireAuth } from './auth/RequireAuth';
+import { LoginPage } from './pages/LoginPage';
+import { ChatPage } from './pages/ChatPage';
+import { HistoryPage } from './pages/HistoryPage';
+import { HistoryDetail } from './pages/HistoryDetail';
+import { NotFound } from './pages/NotFound';
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route element={<MainLayout />}>
+          <Route element={<RequireAuth><Outlet /></RequireAuth>}>
+            <Route path="/chat" element={<ChatPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/history/:id" element={<HistoryDetail />} />
+          </Route>
+          <Route path="/" element={<Navigate to="/chat" replace />} />
+        </Route>
+
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+```
+
+#### 常见坑
+
+- 忘了在 `MainLayout` 里写 `<Outlet />` → 子路由全部"不显示"。
+- `path="*"` 放在前面 → 后面的路由永远匹配不到（写在最后！）。
+- 直接用 `<a href="/chat">` → 整页刷新、状态丢失（改用 `<Link>`）。
+- `<Navigate />` 忘了 `replace` → 后退键能"退回"被守卫的页面，再次被弹走，形成循环。
+- 把 ChatPage 原来的逻辑还留在 `App.tsx` → App.tsx 应该只剩路由表，业务逻辑都在 `pages/ChatPage.tsx` 里。
+
+
 ---
 
 ### Task 6.3 — `useAuth`（临时方案）
