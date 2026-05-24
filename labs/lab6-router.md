@@ -23,27 +23,112 @@
 SPA：点链接 → JS 拦截事件 → 修改 URL（History API）→ React 根据 URL 渲染不同组件，**没有刷新**。
 
 ### React Router v6 关键 API
+
+#### 1. 路由表（一次性写在 App.tsx 顶层）
+
 ```tsx
+// BrowserRouter：基于 HTML5 History API 的路由容器。
+// 必须包在最外层，里面所有 Link / useNavigate / useParams 才能工作。
 <BrowserRouter>
+  {/* Routes：路由匹配器。把当前 URL 跟下面所有 Route 比，命中谁就渲染谁。 */}
   <Routes>
-    <Route element={<MainLayout />}>          {/* 共享布局 */}
+
+    {/*
+      没有 path 的 Route + element={<MainLayout />} = 「布局路由」。
+      它本身不匹配任何 URL，只是给子路由套一层共享 UI（侧栏 / 顶栏等）。
+      MainLayout 里要放 <Outlet />，子路由会渲染到那个 Outlet 的位置。
+    */}
+    <Route element={<MainLayout />}>
+      {/* path="/"：精确匹配根路径，渲染 Home */}
       <Route path="/" element={<Home />} />
+
+      {/* path="/chat"：匹配 /chat */}
       <Route path="/chat" element={<Chat />} />
+
+      {/*
+        path="/chat/:id"：动态段。
+        :id 是一个占位符，访问 /chat/42 时，组件里 useParams() 拿到 { id: "42" }。
+        注意：useParams 拿到的永远是 string，需要数字要自己 Number(id)。
+      */}
       <Route path="/chat/:id" element={<ChatDetail />} />
     </Route>
+
+    {/*
+      LoginPage 故意写在 MainLayout 外面，所以登录页不会带顶部导航。
+      想要 "某页不要布局" 的标准做法，就是不要把它放进布局路由里。
+    */}
     <Route path="/login" element={<Login />} />
+
+    {/*
+      path="*"：通配符，匹配所有「没被上面任何一条命中」的 URL。
+      必须放在最后；通常用来做 404 页面。
+    */}
     <Route path="*" element={<NotFound />} />
   </Routes>
 </BrowserRouter>
-
-// 组件内：
-const navigate = useNavigate();
-const { id } = useParams();
-const [params, setParams] = useSearchParams();
-
-<Link to="/chat">聊天</Link>     {/* 不要用 <a>，会真刷新 */}
-<NavLink to="/chat" className={({ isActive }) => isActive ? 'on' : ''}>聊天</NavLink>
 ```
+
+#### 2. 组件里常用的几个 hook
+
+```tsx
+// useNavigate：拿到一个跳转函数。注意是 hook，不能在普通函数里调。
+// 适合「事件回调里编程式跳转」，比如登录成功后 navigate('/chat')。
+const navigate = useNavigate();
+navigate('/chat');                     // 等价于点了一个 <Link to="/chat">
+navigate('/login', { replace: true }); // 替换当前历史栈，后退不会回到当前页
+navigate(-1);                          // 后退一步
+
+// useParams：读 URL 上的动态段。
+// 比如路由是 /chat/:id，当前 URL 是 /chat/42，这里 id === "42"。
+const { id } = useParams();
+
+// useSearchParams：读/写 ?key=value 这种查询参数。
+// 返回一个类似 useState 的元组：当前值 + 更新函数。
+const [params, setParams] = useSearchParams();
+const topic = params.get('topic');          // /chat?topic=react → "react"
+setParams({ topic: 'vue' });                // URL 变成 /chat?topic=vue
+```
+
+#### 3. 跳转用 `<Link>` / `<NavLink>`，不要用 `<a>`
+
+```tsx
+{/*
+  <a> 会触发浏览器真刷新（重新下载 HTML、重新跑整个 React），
+  SPA 的状态全没了。<Link> 内部拦截了点击，只改 URL + 重渲染。
+*/}
+<Link to="/chat">聊天</Link>
+
+{/*
+  <NavLink> 是 <Link> 的增强版，会根据"当前 URL 是否匹配 to"
+  自动给你一个 isActive 标志，方便做导航高亮。
+*/}
+<NavLink
+  to="/chat"
+  className={({ isActive }) => (isActive ? 'on' : '')}
+>
+  聊天
+</NavLink>
+```
+
+#### 4. `<Outlet />` 和 `<Navigate />`
+
+```tsx
+// MainLayout.tsx：布局组件
+function MainLayout() {
+  return (
+    <div>
+      <nav>...顶部导航...</nav>
+      {/* Outlet 是子路由的占位符。当前 URL 匹配哪个子 Route，就把哪个组件渲染到这里 */}
+      <Outlet />
+    </div>
+  );
+}
+
+// Navigate：声明式跳转组件。渲染它 = 立刻跳到 to。
+// replace 不能省，否则后退会回到守卫页，再次被弹走，形成循环。
+<Navigate to="/login" replace />
+```
+
 
 ---
 
