@@ -1,3 +1,5 @@
+import { Navigate } from 'react-router-dom';
+
 /**
  * 登录页：用户名 + 密码 + 登录按钮。
  *
@@ -11,6 +13,10 @@
  * 提示：mock 后端的规则是 username === password 即通过。
  */
 export function LoginPage() {
-  // TODO
+  // 已登录则直接跳走，不再渲染登录表单
+  const token = localStorage.getItem('token');
+  if (token) return <Navigate to="/chat" replace />;
+
+  // TODO: 登录表单
   return null;
 }
