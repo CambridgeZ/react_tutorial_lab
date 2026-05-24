@@ -1,5 +1,11 @@
 package com.example.chat;
 
+import java.util.Map;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 // Lab 6 Task 6.0：实现登录 + 当前用户信息接口
 //
 // 要求：
@@ -16,5 +22,28 @@ package com.example.chat;
 
 @org.springframework.web.bind.annotation.RestController
 public class AuthController {
-    // TODO Task 6.0
+    @PostMapping("/login")
+    public Map<String, String> login(@RequestBody Map<String, String> body) {
+        String username = body.get("username");
+        String password = body.get("password");
+        if (username != null && username.equals(password)) {
+            return Map.of(
+                    "token", "fake-token-" + username,
+                    "username", username
+            );
+        } else {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        }
+    }
+
+    @GetMapping("/me")
+    public Map<String, String> me(@org.springframework.web.bind.annotation.RequestHeader("Authorization")
+                                        String authorization) {
+            if (authorization != null && authorization.startsWith("fake-token-") ){
+                String username = authorization.substring("fake-token-".length());
+                return Map.of("username", username);
+            } else {
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid token");
+            }
+        }
 }
