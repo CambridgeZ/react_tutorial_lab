@@ -39,8 +39,8 @@ public class AuthController {
     @GetMapping("/me")
     public Map<String, String> me(@org.springframework.web.bind.annotation.RequestHeader("Authorization")
                                         String authorization) {
-            if (authorization != null && authorization.startsWith("fake-token-") ){
-                String username = authorization.substring("fake-token-".length());
+            if (authorization != null && authorization.startsWith("Bearer fake-token-") ){
+                String username = authorization.substring("Bearer fake-token-".length());
                 return Map.of("username", username);
             } else {
                 throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "Invalid token");
