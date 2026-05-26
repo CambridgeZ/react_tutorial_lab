@@ -1,22 +1,31 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { retry } from './retry';
 
 describe('retry', () => {
-  // TODO: 至少 3 个用例
-  //
-  // 用例方向：
-  //  1. 第一次就成功（fn 只被调用 1 次）
-  //  2. 前 N-1 次失败、第 N 次成功
-  //  3. 全部失败 → expect(retry(...)).rejects.toThrow(...)
-  //
-  // 提示：构造一个"前几次失败后成功"的 fn：
-  //
-  //   let count = 0;
-  //   const fn = async () => {
-  //     count++;
-  //     if (count < 3) throw new Error('fail');
-  //     return 'ok';
-  //   };
-  //   expect(await retry(fn, 3, 1)).toBe('ok');
-  //   expect(count).toBe(3);
+  it('第一次就成功', async () => {
+    const fn = vi.fn(async () => 'ok');
+    const result = await retry(fn, 3, 1);
+    expect(result).toBe('ok');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('前 N-1 次失败、第 N 次成功', async () => {
+    let count = 0;
+    const fn = vi.fn(async () => {
+      count++;
+      if (count < 3) throw new Error('fail');
+      return 'ok';
+    });
+    const result = await retry(fn, 3, 1);
+    expect(result).toBe('ok');
+    expect(fn).toHaveBeenCalledTimes(3);
+  });
+
+  it('全部失败', async () => {
+    const fn = vi.fn(async () => {
+      throw new Error('fail');
+    });
+    await expect(retry(fn, 3, 1)).rejects.toThrow('fail');
+    expect(fn).toHaveBeenCalledTimes(3);
+  });
 });

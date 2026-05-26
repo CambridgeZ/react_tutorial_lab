@@ -14,6 +14,17 @@ export interface User {
  *   返回 ['c', 'a']   （id=2 因为 active=false 被过滤掉）
  */
 export function pickByIds(users: User[], ids: number[]): string[] {
-  // TODO: 实现我
-  throw new Error('not implemented');
+    const userMap = users.reduce((acc, user) => {
+        if (user.active){
+            acc[user.id] = user.name;
+        }
+        return acc;
+    }, {} as Record<number, string>);
+
+    return ids.reduce((acc, id) => {
+        if (userMap[id] != null) {
+            acc.push(userMap[id]);
+        }
+        return acc;
+    }, [] as string[]);
 }
