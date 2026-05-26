@@ -9,6 +9,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/chat': 'http://localhost:8080',
+      '/login': 'http://localhost:8080',
+      '/me': 'http://localhost:8080',
     },
   },
 });

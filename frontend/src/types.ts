@@ -3,6 +3,8 @@
 // 让 App.tsx、MessageList、MessageItem 等都能 import。
 
 export interface Message {
+  timestamp: string | number | Date;
+  sender: ReactNode;
   /** 唯一 id（自增即可） */
   id: number;
   /** 谁说的：用户 or 机器人 */

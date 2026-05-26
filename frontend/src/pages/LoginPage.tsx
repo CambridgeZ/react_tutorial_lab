@@ -1,4 +1,6 @@
-import { Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/useAuth';
 
 /**
  * 登录页：用户名 + 密码 + 登录按钮。
@@ -17,6 +19,54 @@ export function LoginPage() {
   const token = localStorage.getItem('token');
   if (token) return <Navigate to="/chat" replace />;
 
-  // TODO: 登录表单
-  return null;
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleLogin() {
+    setError(null);
+    setLoading(true);
+    try {
+      await login(username, password);
+      const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/chat';
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError((err as Error).message || '登录失败');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 320, margin: '80px auto', fontFamily: 'sans-serif' }}>
+      <h2>登录</h2>
+      <div style={{ marginBottom: 8 }}>
+        username:{' '}
+        <input
+          type="text"
+          name="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+      </div>
+      <div style={{ marginBottom: 8 }}>
+        password:{' '}
+        <input
+          type="password"
+          name="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
+      <button onClick={handleLogin} disabled={loading || !username || !password}>
+        {loading ? '登录中...' : 'Login'}
+      </button>
+      {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
+    </div>
+  );
 }
