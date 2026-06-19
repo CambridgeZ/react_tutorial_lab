@@ -17,5 +17,8 @@ interface Props {
  */
 export function EmptyState({ icon: _icon = '💬', children: _children }: Props) {
   // TODO: 居中显示 icon + children，灰色文字
-  return null;
+  return <div style={{ textAlign: 'center', color: '#999' }}>
+    <div style={{ fontSize: 32 }}>{_icon}</div>
+    <div>{_children}</div>
+  </div>
 }

@@ -12,5 +12,12 @@ interface Props {
  */
 export function Header({ onClear: _onClear, canClear: _canClear }: Props) {
   // TODO: 显示标题 "Chat Demo" + 一个"清空对话"按钮
-  return null;
+  return (
+    <div>
+      <h1>Chat Demo</h1>
+      <button onClick={_onClear} disabled={!_canClear}>
+        清空对话
+      </button>
+    </div>
+  );
 }
